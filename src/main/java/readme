@@ -1,0 +1,28 @@
+Hbase:
+    稀疏表存储，无值不分配空间
+
+    并发（线程）：一个cpu，抢占资源
+    并行（进程）：多个CPU执行
+读数据：
+     1）先访问zk,从meta表读取region的位置，然后读取meta表中的数据。meta中又存储了用户表的region信息
+     2）根据namespace、表名、和rowKey在meta表中找到对应得region信息
+     3）找到这个region对应得regionServer
+     4)查找对应的region
+     5)先到MemStore(写缓存)找数据，如果没有，再到BlockCache（读缓存）里面读。
+     6）BlockCache还没有，再到StoreFile上读（为了读取的效率）
+     7）如果是从StoreFile里面读取的数据，不是直接返回给客户端，而是先写入BlockCache，再返回给客户端。
+写数据：
+     1）Client向HregionServer发送写请求；
+     2）Hregion将数据写到HLog(write ahead log)。为了数据的持久化与恢复
+     3）HregionServer将数据写到内存（MemStore）;
+     4)反馈Client写成功
+数据flush过程：
+    1）当MemStore是数据达到阈值（默认128M,老版本64M ）,将数据刷到磁盘，将内存中的数据删除，同时删除HLog中的历史数据
+    2）并将数据存储到HDFS中
+    3）在HLog中做标记点
+常用命令：
+    list: 查看表
+    describe: 查看表结构
+    scan 'student' ,{STARTROW => '1001',STOPROW => '1002'}  :根据rowKey查找，左开右闭，按照字典顺序排序ASCII顺序排
+    get 'student','1001' :查找指定行的数据
+    deleteall 'student' ,'1001'  删除rowKey全部数据
